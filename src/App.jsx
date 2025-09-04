@@ -187,14 +187,14 @@ const LoginPage = ({ onLogin, settings, isSetupMode }) => {
                         <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="username">帳號</label>
                         <div className="relative">
                             <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                            <input id="username" type="text" value={account} onChange={(e) => setAccount(e.target.value)} className="shadow-sm appearance-none border rounded-lg w-full py-3 pl-10 pr-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="請輸入您的帳號" required />
+                            <input id="username" type="text" value={account} onChange={(e) => setAccount(e.target.value)} className="shadow-sm appearance-none border rounded-lg w-full py-3 pl-10 pr-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="請輸入您的EIP帳號(不含@chc.edu.tw)" required />
                         </div>
                     </div>
                     <div className="mb-6">
                         <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">密碼</label>
                         <div className="relative">
                             <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="shadow-sm appearance-none border rounded-lg w-full py-3 pl-10 pr-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="請輸入您的密碼" required />
+                            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="shadow-sm appearance-none border rounded-lg w-full py-3 pl-10 pr-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="請輸入您的密碼(身分證後四碼)" required />
                         </div>
                     </div>
                     <div className="flex items-center justify-center">
