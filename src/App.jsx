@@ -3,15 +3,9 @@ import { ArrowLeft, ArrowRight, Calendar, Settings, List, LogOut, User, Key, Sav
 
 // --- Configuration ---
 // !!! 重要：請將此處的網址換成您部署 Google Apps Script 後取得的網址 !!!
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwxzJdoPyJvUqGQBn0GUTzknwxcXiveJYVdjiVTvfhxn5m20K7qwMaHfQIKTouZUuk6/exec";
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzp1DS5XSnomjH1Ao6Ss3E7pk5bAAq6Kvg48hVwt4Shpg1GsZfDShm7dxLxVxSIcvLO/exec";
 
 // --- Helper Functions ---
-const getSheetIdFromUrl = (url) => {
-    if (!url) return null;
-    const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    return match ? match[1] : null;
-};
-
 const parseCsvToUsers = (csvText) => {
     if (!csvText) return [];
     const lines = csvText.trim().split('\n');
@@ -80,6 +74,28 @@ const generatePeriodsFromAvailability = (availability, duration) => {
             end: slotEnd.toTimeString().substring(0, 5),
         };
     });
+};
+
+const formatISODateToYYYYMMDD = (isoString) => {
+    // If the string doesn't contain 'T', it's likely already in YYYY-MM-DD format or something we shouldn't touch.
+    if (!isoString || !isoString.includes('T')) {
+        return isoString;
+    }
+    try {
+        // new Date() parses the UTC ISO string and converts it to the browser's local time zone.
+        const date = new Date(isoString);
+        
+        // Extract year, month, and day from the local date object.
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        return `${year}-${month}-${day}`;
+    } catch (e) {
+        console.error("Error formatting date:", isoString, e);
+        // Fallback to returning the original string if parsing fails.
+        return isoString;
+    }
 };
 
 
@@ -187,14 +203,14 @@ const LoginPage = ({ onLogin, settings, isSetupMode }) => {
                         <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="username">帳號</label>
                         <div className="relative">
                             <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                            <input id="username" type="text" value={account} onChange={(e) => setAccount(e.target.value)} className="shadow-sm appearance-none border rounded-lg w-full py-3 pl-10 pr-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="請輸入您的EIP帳號(不含@chc.edu.tw)" required />
+                            <input id="username" type="text" value={account} onChange={(e) => setAccount(e.target.value)} className="shadow-sm appearance-none border rounded-lg w-full py-3 pl-10 pr-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="請輸入您的帳號" required />
                         </div>
                     </div>
                     <div className="mb-6">
                         <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">密碼</label>
                         <div className="relative">
                             <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="shadow-sm appearance-none border rounded-lg w-full py-3 pl-10 pr-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="請輸入您的密碼(身分證後四碼)" required />
+                            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="shadow-sm appearance-none border rounded-lg w-full py-3 pl-10 pr-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="請輸入您的密碼" required />
                         </div>
                     </div>
                     <div className="flex items-center justify-center">
@@ -202,7 +218,7 @@ const LoginPage = ({ onLogin, settings, isSetupMode }) => {
                     </div>
                 </form>
             </div>
-            <footer className="absolute bottom-4 text-center text-gray-500 text-sm">© 2025 設備借用預約系統 | 版本 2.1 (Google Sheets)</footer>
+            <footer className="absolute bottom-4 text-center text-gray-500 text-sm">© 2025 設備借用預約系統 | 版本 2.4 (Google Sheets)</footer>
         </div>
     );
 };
@@ -215,7 +231,7 @@ const App = () => {
     
     const [settings, setSettings] = useState({
         siteTitle: '設備借用預約系統',
-        googleSheetUrl: '',
+        googleSheetUrl: '', // This will now store the Sheet ID
         equipment: [],
         bookingWindowDays: 30,
         weeklyAvailability: initialWeeklyAvailability(),
@@ -452,7 +468,7 @@ const App = () => {
                 {currentView === 'admin' && user.role === 'Admin' && <AdminDashboard settings={settings} reservations={reservations} onCancelClick={(reservation) => setReservationToCancel(reservation)} setToast={setToast} postData={postData} isSetupMode={isSetupMode} />}
             </main>
             
-            <footer className="fixed bottom-0 left-0 right-0 bg-white border-t p-2 text-center text-gray-500 text-sm">© 2025 設備借用預約系統 | 版本 2.1 (Google Sheets)</footer>
+            <footer className="fixed bottom-0 left-0 right-0 bg-white border-t p-2 text-center text-gray-500 text-sm">© 2025 設備借用預約系統 | 版本 2.4 (Google Sheets)</footer>
         </div>
     );
 };
@@ -518,7 +534,7 @@ const CancelConfirmationModal = ({ reservation, settings, onClose, onConfirm }) 
                 <p className="mb-6">您確定要取消這筆預約嗎？</p>
                 <div className="bg-gray-50 p-4 rounded-md mb-6 text-sm">
                     <p><strong>預約人:</strong> {reservation.userName}</p>
-                    <p><strong>日期:</strong> {reservation.date}</p>
+                    <p><strong>日期:</strong> {formatISODateToYYYYMMDD(reservation.date)}</p>
                     <p><strong>節次:</strong> 第 {reservation.period} 節 ({periodInfo ? `${periodInfo.start} - ${periodInfo.end}` : ''})</p>
                     <p><strong>設備:</strong> {reservation.equipmentName}</p>
                 </div>
@@ -586,7 +602,7 @@ const CalendarView = ({ currentDate, changeMonth, calendarData, settings, reserv
 
         equipmentToFilter.forEach(equip => {
             totalAvailable += Number(equip.total);
-            totalReserved += reservations.filter(r => r.date === dateStr && r.period == period && r.equipmentId === equip.id).length;
+            totalReserved += reservations.filter(r => formatISODateToYYYYMMDD(r.date) === dateStr && r.period == period && r.equipmentId === equip.id).length;
         });
 
         if (totalReserved >= totalAvailable) return 'fully-booked';
@@ -671,10 +687,10 @@ const DayPeriodModal = ({ data, onClose, settings, reservations, user, onReserve
         const slotDateTime = new Date(`${dateStr}T${periodInfo.start}`);
         if (slotDateTime < now) return { status: 'expired', text: '已過期', isClickable: false };
 
-        const reservedCount = reservations.filter(r => r.date === dateStr && r.period == period && r.equipmentId === equipment.id).length;
+        const reservedCount = reservations.filter(r => formatISODateToYYYYMMDD(r.date) === dateStr && r.period == period && r.equipmentId === equipment.id).length;
         const totalAvailable = Number(equipment.total);
         
-        const myReservation = reservations.find(r => r.date === dateStr && r.period == period && r.equipmentId === equipment.id && r.userId === user.account);
+        const myReservation = reservations.find(r => formatISODateToYYYYMMDD(r.date) === dateStr && r.period == period && r.equipmentId === equipment.id && r.userId === user.account);
         if (myReservation) return { status: 'my-reservation', text: `我的預約 (${user.name})`, isClickable: false };
 
         if (reservedCount >= totalAvailable) return { status: 'reserved', text: `已預約 (${reservedCount}/${totalAvailable})`, isClickable: false };
@@ -723,7 +739,8 @@ const MyReservationsView = ({ user, reservations, settings, onCancelClick }) => 
             .filter(r => r.userId === user.account)
             .map(r => {
                 const now = new Date();
-                const [year, month, day] = r.date.split('-').map(Number);
+                const localDateStr = formatISODateToYYYYMMDD(r.date);
+                const [year, month, day] = localDateStr.split('-').map(Number);
                 const periodInfo = settings.periods.find(p => p.period == r.period) || { start: '00:00' };
                 const [hour, minute] = periodInfo.start.split(':');
                 const reservationDate = new Date(year, month - 1, day, hour, minute);
@@ -752,7 +769,7 @@ const MyReservationsView = ({ user, reservations, settings, onCancelClick }) => 
                         ) : (
                             myReservations.map(r => (
                                 <tr key={r.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap">{r.date}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">{formatISODateToYYYYMMDD(r.date)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">第 {r.period} 節</td>
                                     <td className="px-6 py-4 whitespace-nowrap">{r.equipmentName}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -779,7 +796,6 @@ const AdminDashboard = ({ settings, reservations, onCancelClick, setToast, postD
     const [activeTab, setActiveTab] = useState(isSetupMode ? 'system' : 'reservations');
     const [localSettings, setLocalSettings] = useState(settings);
     const [showExportModal, setShowExportModal] = useState(false);
-    // ClearHistoryModal is removed as deletion is now handled by GAS
     const [customDuration, setCustomDuration] = useState('');
     const [durationSelect, setDurationSelect] = useState('');
     const [customBreak, setCustomBreak] = useState('');
@@ -910,27 +926,11 @@ const AdminDashboard = ({ settings, reservations, onCancelClick, setToast, postD
     };
 
     const saveSettings = async () => {
-        if (isSetupMode && !getSheetIdFromUrl(localSettings.googleSheetUrl)) {
-            setToast({ message: '請先提供有效的 Google 試算表連結', type: 'error' });
+        if (isSetupMode && (!localSettings.googleSheetUrl || localSettings.googleSheetUrl.trim() === '')) {
+            setToast({ message: '請先提供有效的 Google 試算表 ID', type: 'error' });
             return;
         }
         await postData('saveSettings', localSettings);
-    };
-
-    const testGoogleSheet = async () => {
-        // This test now only checks the main sheet URL for user list
-        const sheetId = getSheetIdFromUrl(localSettings.googleSheetUrl);
-        if (!sheetId) {
-            setToast({ message: 'Google 試算表連結格式錯誤', type: 'error' });
-            return;
-        }
-        try {
-            const response = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=Users`);
-            if (!response.ok) throw new Error('無法讀取，請檢查連結是否正確，以及試算表是否已設為「知道連結的任何人」可查看。');
-            setToast({ message: 'Google 試算表連結有效！', type: 'success' });
-        } catch (error) {
-            setToast({ message: error.message, type: 'error' });
-        }
     };
     
      const handleSort = (key) => {
@@ -947,10 +947,14 @@ const AdminDashboard = ({ settings, reservations, onCancelClick, setToast, postD
             let aValue = a[sortConfig.key];
             let bValue = b[sortConfig.key];
 
+            if (sortConfig.key === 'date') {
+                aValue = new Date(a.date);
+                bValue = new Date(b.date);
+            }
+
             if (sortConfig.key === 'period') {
-                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-                return 0;
+                aValue = Number(a.period);
+                bValue = Number(b.period);
             }
             
             if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -960,7 +964,8 @@ const AdminDashboard = ({ settings, reservations, onCancelClick, setToast, postD
 
         return sortableItems.map(r => {
             const now = new Date();
-            const [year, month, day] = r.date.split('-').map(Number);
+            const localDateStr = formatISODateToYYYYMMDD(r.date);
+            const [year, month, day] = localDateStr.split('-').map(Number);
             const periodInfo = settings.periods.find(p => p.period == r.period) || { start: '00:00' };
             const [hour, minute] = periodInfo.start.split(':');
             const reservationDate = new Date(year, month - 1, day, hour, minute);
@@ -973,7 +978,7 @@ const AdminDashboard = ({ settings, reservations, onCancelClick, setToast, postD
         printWindow.document.write('<html><head><title>所有預約紀錄</title><style>body{font-family:sans-serif;} table{width:100%; border-collapse:collapse;} th,td{border:1px solid #ddd; padding:8px; text-align:left;} th{background-color:#f2f2f2;}</style></head><body><h1>所有預約紀錄</h1><table><thead><tr><th>預約人</th><th>預約日期</th><th>節次</th><th>設備名稱</th><th>狀態</th></tr></thead><tbody>');
         allReservationsSorted.forEach(r => {
             const periodInfo = settings.periods.find(p => p.period == r.period);
-            printWindow.document.write(`<tr><td>${r.userName}</td><td>${r.date}</td><td>第 ${r.period} 節 (${periodInfo ? `${periodInfo.start} - ${periodInfo.end}` : ''})</td><td>${r.equipmentName}</td><td>${r.isExpired ? '已過期' : '有效'}</td></tr>`);
+            printWindow.document.write(`<tr><td>${r.userName}</td><td>${formatISODateToYYYYMMDD(r.date)}</td><td>第 ${r.period} 節 (${periodInfo ? `${periodInfo.start} - ${periodInfo.end}` : ''})</td><td>${r.equipmentName}</td><td>${r.isExpired ? '已過期' : '有效'}</td></tr>`);
         });
         printWindow.document.write('</tbody></table></body></html>');
         printWindow.document.close();
@@ -1007,7 +1012,7 @@ const AdminDashboard = ({ settings, reservations, onCancelClick, setToast, postD
                         <Info className="flex-shrink-0 mt-1" />
                         <div>
                             <p className="font-bold">歡迎使用！請完成系統初始化設定。</p>
-                            <p>請在下方的「Google 試算表連結」欄位中，填入您用來管理使用者帳號的試算表連結，並點擊「儲存變更」以啟用系統所有功能。</p>
+                            <p>請在下方的「Google 試算表 ID」欄位中，填入您的試算表 ID，並點擊「儲存變更」以啟用系統所有功能。</p>
                         </div>
                     </div>
                 )}
@@ -1031,7 +1036,7 @@ const AdminDashboard = ({ settings, reservations, onCancelClick, setToast, postD
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {allReservationsSorted.map(r => (<tr key={r.id}><td className="px-4 py-2 whitespace-nowrap">{r.userName}</td><td className="px-4 py-2 whitespace-nowrap">{r.date}</td><td className="px-4 py-2 whitespace-nowrap">第 {r.period} 節</td><td className="px-4 py-2 whitespace-nowrap">{r.equipmentName}</td><td className="px-4 py-2 whitespace-nowrap">{r.isExpired ? '已過期' : '有效'}</td><td className="px-4 py-2 whitespace-nowrap">{!r.isExpired && <button onClick={() => onCancelClick(r)} className="text-red-600 hover:text-red-900"><Trash2 size={16} /></button>}</td></tr>))}
+                                    {allReservationsSorted.map(r => (<tr key={r.id}><td className="px-4 py-2 whitespace-nowrap">{r.userName}</td><td className="px-4 py-2 whitespace-nowrap">{formatISODateToYYYYMMDD(r.date)}</td><td className="px-4 py-2 whitespace-nowrap">第 {r.period} 節</td><td className="px-4 py-2 whitespace-nowrap">{r.equipmentName}</td><td className="px-4 py-2 whitespace-nowrap">{r.isExpired ? '已過期' : '有效'}</td><td className="px-4 py-2 whitespace-nowrap">{!r.isExpired && <button onClick={() => onCancelClick(r)} className="text-red-600 hover:text-red-900"><Trash2 size={16} /></button>}</td></tr>))}
                                 </tbody>
                             </table>
                         </div>
@@ -1109,12 +1114,11 @@ const AdminDashboard = ({ settings, reservations, onCancelClick, setToast, postD
                                 <p className="text-xs text-gray-500 mt-1">使用者僅能預約從今天起算，未來 N 天內的時段。</p>
                             </div>
                             <div>
-                                <label className="block font-medium mb-1">Google 試算表連結</label>
-                                <div className="flex gap-2 items-center">
-                                    <input type="text" value={localSettings.googleSheetUrl} onChange={e => setLocalSettings({...localSettings, googleSheetUrl: e.target.value})} className="flex-grow p-2 border rounded-md" placeholder="https://docs.google.com/spreadsheets/d/..." />
-                                    <button onClick={testGoogleSheet} className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200"><TestTube2 size={16} /> 測試</button>
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">請提供包含所有工作表 (Users, Settings 等) 的主要試算表連結。</p>
+                                <label className="block font-medium mb-1">Google 試算表 ID</label>
+                                <input type="text" value={localSettings.googleSheetUrl} onChange={e => setLocalSettings({...localSettings, googleSheetUrl: e.target.value})} className="w-full p-2 border rounded-md" placeholder="請輸入您的 Google 試算表 ID" />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    請從您的 Google 試算表網址中複製 ID，例如：.../spreadsheets/d/<strong className="text-red-500 font-semibold">這一段就是ID</strong>/edit
+                                </p>
                             </div>
                         </div>
                         <button onClick={saveSettings} className="mt-6 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"><Save size={16} /> 儲存變更</button>
@@ -1134,7 +1138,7 @@ const AdminTabButton = ({ text, active, onClick, disabled }) => (
 
 const ExportModal = ({ reservations, settings, onClose, setToast }) => {
     const availableMonths = useMemo(() => {
-        const months = new Set(reservations.map(r => r.date.substring(0, 7))); // YYYY-MM
+        const months = new Set(reservations.map(r => formatISODateToYYYYMMDD(r.date).substring(0, 7))); // YYYY-MM
         return Array.from(months).sort().reverse();
     }, [reservations]);
 
@@ -1152,12 +1156,12 @@ const ExportModal = ({ reservations, settings, onClose, setToast }) => {
             return;
         }
 
-        const dataToExport = reservations.filter(r => selectedMonths.includes(r.date.substring(0, 7)));
+        const dataToExport = reservations.filter(r => selectedMonths.includes(formatISODateToYYYYMMDD(r.date).substring(0, 7)));
         
         const header = ["預約單號", "預約日期", "節次", "開始時間", "結束時間", "預約人帳號", "預約人姓名", "設備ID", "設備名稱", "預約時間戳記"];
         const rows = dataToExport.map(r => {
             const periodInfo = settings.periods.find(p => p.period == r.period) || { start: 'N/A', end: 'N/A' };
-            return [r.id, r.date, r.period, periodInfo.start, periodInfo.end, r.userId, r.userName, r.equipmentId, r.equipmentName, r.timestamp]
+            return [r.id, formatISODateToYYYYMMDD(r.date), r.period, periodInfo.start, periodInfo.end, r.userId, r.userName, r.equipmentId, r.equipmentName, r.timestamp]
         });
 
         let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
@@ -1200,3 +1204,4 @@ const ExportModal = ({ reservations, settings, onClose, setToast }) => {
 };
 
 export default App;
+
